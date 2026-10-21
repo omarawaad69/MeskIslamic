@@ -1083,8 +1083,8 @@ const servers = {
   'minsh':    'https://server10.mp3quran.net/minsh/',
   'husr':     'https://server13.mp3quran.net/husr/',
   'mustafa':  'https://server8.mp3quran.net/mustafa/',
-  'rifat':    'https://server14.mp3quran.net/rifat/',
-  'banna':    'https://server8.mp3quran.net/banna/',
+  'rifat':    'https://server14.mp3quran.net/refat/',
+  'banna':    'https://server8.mp3quran.net/bna/',
   'tblawi':   'https://server12.mp3quran.net/tblawi/',
   'naina':    'https://server8.mp3quran.net/naina/',
   'maher':    'https://server12.mp3quran.net/maher/',
@@ -1094,25 +1094,40 @@ const servers = {
   'shuraim':  'https://server7.mp3quran.net/shur/',
   'ajm':      'https://server10.mp3quran.net/ajm/',
   'hudhaify': 'https://server9.mp3quran.net/hthfi/',
-  'baleela':  'https://server8.mp3quran.net/balilah/',
+  'baleela':  'https://server6.mp3quran.net/balilah/',
   'shatri':   'https://server11.mp3quran.net/shatri/',
   'abkr':     'https://server6.mp3quran.net/abkr/',
-  'dukhain':  'https://server8.mp3quran.net/dukhain/',
+  'dukhain':  'https://server16.mp3quran.net/h_dukhain/Rewayat-Hafs-A-n-Assem/',
   'afs':      'https://server8.mp3quran.net/afs/',
   'frs_a':    'https://server8.mp3quran.net/frs_a/',
   'qtm':      'https://server6.mp3quran.net/qtm/',
-  'jleel':    'https://cdn.mp3quran.net/audio/khalid-jalil/r1/',
-  'islam':    'https://cdn.mp3quran.net/audio/islam-sobhi/r1/',
-  'mousa':    'https://cdn.mp3quran.net/audio/abdullah-mousa/r1/'
+  'jleel':    'https://server10.mp3quran.net/jleel/',
+  'islam':    'https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/',
+  'mousa':    'https://server14.mp3quran.net/mousa/Rewayat-Hafs-A-n-Assem/'
 };
 // مصادر بديلة تُجرَّب تلقائيًا لو فشل المصدر الأساسي
 const altServers = {
-  'qtm':   ['https://cdn.mp3quran.net/audio/nasser-qatami/r1/'],
-  'jleel': ['https://server10.mp3quran.net/jleel/'],
-  'islam': ['https://server14.mp3quran.net/islam/Rewayat-Hafs-A-n-Assem/', 'https://server14.mp3quran.net/islam/']
+  'qtm':    ['https://cdn.mp3quran.net/audio/nasser-qatami/r1/'],
+  'jleel':  ['https://cdn.mp3quran.net/audio/khalid-jalil/r1/'],
+  'islam':  ['https://server14.mp3quran.net/islam/'],
+  'mousa':  ['https://cdn.mp3quran.net/audio/abdullah-mousa/r1/'],
+  'banna':  ['https://server8.mp3quran.net/banna/', 'https://server8.mp3quran.net/bna/Almusshaf-Al-Mojawwad/'],
+  'rifat':  ['https://server14.mp3quran.net/rifat/'],
+  'baleela':['https://server8.mp3quran.net/balilah/'],
+  'dukhain':['https://server8.mp3quran.net/dukhain/'],
+  'minsh':  ['https://server10.mp3quran.net/minsh/Almusshaf-Al-Mojawwad/'],
+  'mustafa':['https://server8.mp3quran.net/mustafa/Almusshaf-Al-Mojawwad/'],
+  'husr':   ['https://server13.mp3quran.net/husr/Almusshaf-Al-Mojawwad/']
 };
-// سور غير متوفرة عند بعض الشيوخ
-const missingSurahs = { 'islam': ['037', '039', '040', '045', '065'] };
+// سور متاحة فعليًا عند بعض الشيوخ فقط (من بيانات mp3quran)
+const mqPad3 = n => String(n).padStart(3, '0');
+const mqOnly = list => { const have = new Set(list); const out = []; for (let n = 1; n <= 114; n++) if (!have.has(n)) out.push(mqPad3(n)); return out; };
+const missingSurahs = {
+  'rifat': mqOnly([1,2,10,11,12,17,18,19,20,48,54,55,56,69,72,73,75,76,77,78,79,81,82,83,85,86,87,88,89,96,98,100]),
+  'islam': mqOnly([13,17,18,26,31,32,41,42,44,50,53,54,55,56,59,64,66,67,70,72,76,79,85,88]),
+  'mousa': mqOnly([1,2,3,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,25,26,27,29,31,32,33,35,36,37,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114]),
+  'abkr':  ['045', '046', '049']
+};
 const hasSurah = (rid, n) => !(missingSurahs[rid] || []).includes(n);
 
 const surahs = [
@@ -1427,43 +1442,50 @@ const surahs = [
 
   // ======== مصادر الشيوخ: اكتشاف تلقائي للسيرفر الحالي + مصادر بديلة ========
   const MP3Q_API = 'https://www.mp3quran.net/api/v3/reciters?language=ar';
-  const LIVE_KEY = 'misk_live_servers_v2';
+  const LIVE_KEY = 'misk_live_servers_v3';
   let liveServers = {};     // reciterId -> سيرفر محدّث من واجهة mp3quran
-  function mqSrvKeys(id) {
-    const urls = [servers[id]].concat(altServers[id] || []);
-    const keys = [];
-    urls.forEach(u => { try { String(u).replace(/\/+$/, '').split('/').slice(3).forEach(seg => { if (seg && !/^(audio|r1)$/i.test(seg) && !/^Rewayat/i.test(seg)) keys.push(seg.toLowerCase()); }); } catch (e) {} });
-    if (id === 'mousa') keys.push('mousa');
-    if (id === 'jleel') keys.push('jleel');
-    return keys;
-  }
   function applyLive(map) {
     liveServers = map.srv || {};
     Object.keys(map.miss || {}).forEach(id => { missingSurahs[id] = map.miss[id]; });
+  }
+  const mpKey = t => String(t || '').replace(/[\u064B-\u065F\u0670\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ').trim();
+  const mpFlat = t => mpKey(t).replace(/ /g, '');
+  const mpToks = t => mpKey(t).split(' ').map(w => w.replace(/^ال/, '')).filter(Boolean);
+  function mpMatch(appName, apiList) {
+    const fa = mpFlat(appName), ta = mpToks(appName);
+    let best = null, bestScore = -1;
+    for (const r of apiList) {
+      const fb = mpFlat(r.name), tb = mpToks(r.name);
+      let score = -1;
+      if (fa === fb) score = 100;
+      else if (fa.length >= 8 && fb.length >= 8 && (fa.includes(fb) || fb.includes(fa))) score = 80 - Math.abs(fa.length - fb.length);
+      else {
+        const small = ta.length <= tb.length ? ta : tb, big = ta.length <= tb.length ? tb : ta;
+        if (small.length >= 2 && small.every(w => big.includes(w))) score = 60 - (big.length - small.length);
+      }
+      if (score > bestScore) { bestScore = score; best = r; }
+    }
+    return bestScore >= 50 ? best : null;
   }
   async function discoverServers() {
     try { const c = JSON.parse(localStorage.getItem(LIVE_KEY) || 'null'); if (c && c.map) { applyLive(c.map); if (Date.now() - c.t < 2 * 86400000) return; } } catch (e) {}
     if (!navigator.onLine) return;
     try {
-      const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 15000);
+      const ctrl = new AbortController(); const to = setTimeout(() => ctrl.abort(), 20000);
       const r = await fetch(MP3Q_API, { signal: ctrl.signal }); clearTimeout(to);
       if (!r.ok) return;
       const j = await r.json();
-      const byKey = {};
-      (j.reciters || []).forEach(rc => (rc.moshaf || []).forEach(m => {
-        if (!m.server) return;
-        const seg = String(m.server).replace(/\/+$/, '').split('/').pop().toLowerCase();
-        if (!byKey[seg]) byKey[seg] = m;
-      }));
+      const api = (j.reciters || []).filter(x => x && x.name && Array.isArray(x.moshaf));
       const srv = {}, miss = {};
       reciters.forEach(rc => {
-        for (const k of mqSrvKeys(rc.id)) {
-          const m = byKey[k]; if (!m) continue;
-          srv[rc.id] = String(m.server).replace(/\/*$/, '/');
-          const list = String(m.surah_list || '').split(',').map(x => parseInt(x, 10)).filter(Boolean);
-          if (list.length > 50) { const have = new Set(list); const ms = []; for (let n = 1; n <= 114; n++) if (!have.has(n)) ms.push(String(n).padStart(3, '0')); miss[rc.id] = ms; }
-          break;
-        }
+        const hit = mpMatch(rc.name, api); if (!hit) return;
+        const cands = hit.moshaf.filter(m => m.server && m.moshaf_type === 11);
+        if (!cands.length) return;
+        cands.sort((a, b) => (b.surah_total || 0) - (a.surah_total || 0));
+        const m = cands[0];
+        srv[rc.id] = String(m.server).replace(/([^:])\/{2,}/g, '$1/').replace(/\/*$/, '/');
+        const list = String(m.surah_list || '').split(',').map(x => parseInt(x, 10)).filter(Boolean);
+        if (list.length) miss[rc.id] = mqOnly(list);
       });
       const map = { srv, miss };
       applyLive(map);
@@ -2297,6 +2319,7 @@ const surahs = [
       catch (e) { if (e && e.name === 'AbortError') throw e; lastErr = e; }
     }
     if (!res) throw lastErr || new Error('تعذر الوصول للمصدر');
+    res._ok = true;
     const total = parseInt(res.headers.get('content-length') || '0', 10) || 0;
     let blob;
     if (res.body && res.body.getReader) {
