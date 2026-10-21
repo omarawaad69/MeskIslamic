@@ -6,6 +6,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify adhan file
+        run: |
+          ls -l
+          if [ ! -f adhan.mp3 ]; then echo "::error::adhan.mp3 غير موجود في جذر المستودع"; exit 1; fi
+          SIZE=$(stat -c%s adhan.mp3)
+          echo "adhan.mp3 size: $SIZE bytes"
+          if [ "$SIZE" -lt 50000 ]; then echo "::error::adhan.mp3 صغير جدا"; exit 1; fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -18,10 +27,19 @@ jobs:
         run: |
           mkdir -p www
           cp index.html www/index.html
-          if [ -f adhan.mp3 ]; then cp adhan.mp3 www/adhan.mp3; fi
+          cp adhan.mp3 www/adhan.mp3
           npm init -y
           npm i @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7 @capacitor/local-notifications@7
           npx cap init Misk com.misk.app --web-dir=www
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.misk.app",
+            "appName": "Misk",
+            "webDir": "www",
+            "server": { "androidScheme": "https", "cleartext": true },
+            "android": { "allowMixedContent": true }
+          }
+          EOF
           npx cap add android
           npx cap sync android
 
@@ -34,7 +52,7 @@ jobs:
             'ACCESS_FINE_LOCATION','ACCESS_COARSE_LOCATION','POST_NOTIFICATIONS',
             'SCHEDULE_EXACT_ALARM','USE_EXACT_ALARM','WAKE_LOCK','VIBRATE',
             'RECEIVE_BOOT_COMPLETED','MODIFY_AUDIO_SETTINGS'])
-          s = s.replace('<application', perms + '    <application', 1)
+          s = s.replace('<application', perms + '    <application android:usesCleartextTraffic="true"', 1)
           open(p, 'w', encoding='utf-8').write(s)
           sp = 'android/app/src/main/res/values/strings.xml'
           t = open(sp, encoding='utf-8').read()
@@ -43,13 +61,57 @@ jobs:
           open(sp, 'w', encoding='utf-8').write(t)
           EOF
           mkdir -p android/app/src/main/res/raw
-          if [ -f adhan.mp3 ]; then cp adhan.mp3 android/app/src/main/res/raw/adhan.mp3; fi
+          cp adhan.mp3 android/app/src/main/res/raw/adhan.mp3
+
+      - name: Set app icon
+        run: |
+          if [ ! -f icon.png ]; then echo "icon.png not found - keeping default icon"; exit 0; fi
+          pip install pillow
+          python3 - <<'EOF'
+          from PIL import Image, ImageDraw
+          import os, glob
+          src = Image.open('icon.png').convert('RGBA')
+          w, h = src.size
+          side = min(w, h)
+          src = src.crop(((w - side) // 2, (h - side) // 2, (w + side) // 2, (h + side) // 2))
+          px = src.getpixel((6, 6))
+          bg = '#%02X%02X%02X' % px[:3]
+          res = 'android/app/src/main/res'
+          for f in glob.glob(res + '/mipmap-*/ic_launcher*.webp'):
+              os.remove(f)
+          legacy = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+          fore = {'mdpi': 108, 'hdpi': 162, 'xhdpi': 216, 'xxhdpi': 324, 'xxxhdpi': 432}
+          for d, n in legacy.items():
+              folder = f'{res}/mipmap-{d}'
+              os.makedirs(folder, exist_ok=True)
+              ic = src.resize((n, n), Image.LANCZOS)
+              ic.save(f'{folder}/ic_launcher.png')
+              mask = Image.new('L', (n, n), 0)
+              ImageDraw.Draw(mask).ellipse((0, 0, n - 1, n - 1), fill=255)
+              rd = ic.copy(); rd.putalpha(mask)
+              rd.save(f'{folder}/ic_launcher_round.png')
+              fs = fore[d]
+              canvas = Image.new('RGBA', (fs, fs), (0, 0, 0, 0))
+              inner = int(fs * 0.70)
+              canvas.paste(src.resize((inner, inner), Image.LANCZOS), ((fs - inner) // 2, (fs - inner) // 2))
+              canvas.save(f'{folder}/ic_launcher_foreground.png')
+          os.makedirs(res + '/mipmap-anydpi-v26', exist_ok=True)
+          xml = '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/ic_launcher_background"/>\n    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n</adaptive-icon>\n'
+          open(res + '/mipmap-anydpi-v26/ic_launcher.xml', 'w').write(xml)
+          open(res + '/mipmap-anydpi-v26/ic_launcher_round.xml', 'w').write(xml)
+          open(res + '/values/ic_launcher_background.xml', 'w').write('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">' + bg + '</color>\n</resources>\n')
+          print('icon done, background', bg)
+          EOF
 
       - name: Build APK
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
+
+      - name: Check adhan inside APK
+        run: |
+          unzip -l android/app/build/outputs/apk/debug/app-debug.apk | grep -i "res/raw/adhan" || { echo "::error::adhan not packaged in APK"; exit 1; }
 
       - uses: actions/upload-artifact@v4
         with:
